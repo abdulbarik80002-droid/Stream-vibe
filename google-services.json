@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "987884954097",
+    "project_id": "stream-vibe-9793f",
+    "storage_bucket": "stream-vibe-9793f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:987884954097:android:ca9d8b54a7a2d9003f2450",
+        "android_client_info": {
+          "package_name": "Com.ai.studio.stream.vibe.srqpkz"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsSq22epAHEwNMn2G1MYxnVRpZPxRmEKs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
