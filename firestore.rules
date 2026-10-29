@@ -1,0 +1,426 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- PRIMITIVE HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        ('email' in request.auth.token &&
+         'email_verified' in request.auth.token &&
+         request.auth.token.email == "abdulbarik80000@gmail.com" &&
+         request.auth.token.email_verified == true)
+      );
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.username is string && data.username.size() >= 2 && data.username.size() <= 40 &&
+             data.bio is string && data.bio.size() <= 250 &&
+             data.avatarColor is string && data.avatarColor.size() >= 4 && data.avatarColor.size() <= 16 &&
+             data.coinsBalance is int && data.coinsBalance >= 0 && data.coinsBalance <= 1000000000 &&
+             (!('adminWalletDiamonds' in data) || (data.adminWalletDiamonds is int && data.adminWalletDiamonds >= 0 && data.adminWalletDiamonds <= 1000000000)) &&
+             (!('creatorEarningsDiamonds' in data) || (data.creatorEarningsDiamonds is int && data.creatorEarningsDiamonds >= 0 && data.creatorEarningsDiamonds <= 1000000000)) &&
+             (!('withdrawableDiamonds' in data) || (data.withdrawableDiamonds is int && data.withdrawableDiamonds >= 0 && data.withdrawableDiamonds <= 1000000000)) &&
+             (!('vipLevel' in data) || (data.vipLevel is int && data.vipLevel >= 1 && data.vipLevel <= 1000)) &&
+             (!('vipXp' in data) || (data.vipXp is int && data.vipXp >= 0 && data.vipXp <= 1000000000)) &&
+             (!('adminMaxAllocationLimit' in data) || (data.adminMaxAllocationLimit is int && data.adminMaxAllocationLimit >= 100 && data.adminMaxAllocationLimit <= 100000000)) &&
+             (!('adminDailyGiftLimit' in data) || (data.adminDailyGiftLimit is int && data.adminDailyGiftLimit >= 100 && data.adminDailyGiftLimit <= 100000000)) &&
+             data.giftsReceivedCount is int && data.giftsReceivedCount >= 0 &&
+             data.followersCount is int && data.followersCount >= 0 &&
+             data.isVerifiedOtp is bool &&
+             data.acceptedTerms is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.phone is string && data.phone.size() <= 25 &&
+             data.kycStatus is string && (data.kycStatus == 'pending' || data.kycStatus == 'verified') &&
+             (!('bankHolderName' in data) || (data.bankHolderName is string && data.bankHolderName.size() <= 80)) &&
+             (!('bankAccountNumber' in data) || (data.bankAccountNumber is string && data.bankAccountNumber.size() <= 34)) &&
+             (!('bankIfsc' in data) || (data.bankIfsc is string && data.bankIfsc.size() <= 20)) &&
+             (!('bankName' in data) || (data.bankName is string && data.bankName.size() <= 80)) &&
+             (!('bankVerified' in data) || data.bankVerified is bool) &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidReelPost(data) {
+      return data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 50 &&
+             data.caption is string && data.caption.size() >= 1 && data.caption.size() <= 500 &&
+             data.mediaType is string && (data.mediaType == 'REEL' || data.mediaType == 'SHORT_VIDEO' || data.mediaType == 'PHOTO') &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 40 &&
+             data.musicTrack is string && data.musicTrack.size() >= 1 && data.musicTrack.size() <= 80 &&
+             data.themeColorHex is string && data.themeColorHex.size() >= 4 && data.themeColorHex.size() <= 16 &&
+             data.mediaUri is string && data.mediaUri.size() <= 1000 &&
+             data.likesCount is int && data.likesCount >= 0 &&
+             data.giftsCoinsTotal is int && data.giftsCoinsTotal >= 0 &&
+             data.visibility is string && (data.visibility == 'PUBLIC' || data.visibility == 'MODERATION') &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidLiveRoom(data) {
+      return data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
+             data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 50 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 50 &&
+             data.status is string && (data.status == 'LIVE' || data.status == 'ENDED') &&
+             data.viewerCount is int && data.viewerCount >= 0 &&
+             data.totalGiftsCoins is int && data.totalGiftsCoins >= 0 &&
+             (!('isPkBattle' in data) || data.isPkBattle is bool) &&
+             (!('opponentName' in data) || (data.opponentName is string && data.opponentName.size() <= 50)) &&
+             (!('hostPkScore' in data) || (data.hostPkScore is int && data.hostPkScore >= 0 && data.hostPkScore <= 1000000000)) &&
+             (!('opponentPkScore' in data) || (data.opponentPkScore is int && data.opponentPkScore >= 0 && data.opponentPkScore <= 1000000000)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidLiveChatMessage(data) {
+      return data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 &&
+             data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 50 &&
+             data.message is string && data.message.size() >= 1 && data.message.size() <= 300 &&
+             data.messageType is string && (data.messageType == 'CHAT' || data.messageType == 'GIFT' || data.messageType == 'PK_GIFT') &&
+             data.giftName is string && data.giftName.size() <= 40 &&
+             data.giftCoins is int && data.giftCoins >= 0 && data.giftCoins <= 10000000 &&
+             (!('walletSource' in data) || (data.walletSource is string && (data.walletSource == 'USER_WALLET' || data.walletSource == 'ADMIN_PROMO_WALLET'))) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidCoinTransaction(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.txType is string && (
+               data.txType == 'RAZORPAY_TOPUP' ||
+               data.txType == 'GIFT_SENT' ||
+               data.txType == 'GIFT_RECEIVED' ||
+               data.txType == 'ADMIN_PROMO_ALLOCATION' ||
+               data.txType == 'ADMIN_PROMO_GIFT' ||
+               data.txType == 'CREATOR_WITHDRAWAL' ||
+               data.txType == 'VIP_UPGRADE' ||
+               data.txType == 'WELCOME_BONUS'
+             ) &&
+             data.coinsDelta is int && data.coinsDelta >= -100000000 && data.coinsDelta <= 100000000 &&
+             data.amountInrPaise is int && data.amountInrPaise >= 0 && data.amountInrPaise <= 1000000000 &&
+             data.razorpayOrderId is string && data.razorpayOrderId.size() <= 100 &&
+             data.razorpayPaymentId is string && data.razorpayPaymentId.size() <= 100 &&
+             data.paymentMode is string && (data.paymentMode == 'TEST' || data.paymentMode == 'LIVE') &&
+             data.recipientName is string && data.recipientName.size() <= 80 &&
+             data.giftLabel is string && data.giftLabel.size() <= 100 &&
+             (!('walletType' in data) || (data.walletType is string && (data.walletType == 'USER_WALLET' || data.walletType == 'ADMIN_WALLET' || data.walletType == 'CREATOR_WALLET'))) &&
+             (!('senderId' in data) || (data.senderId is string && data.senderId.size() <= 128)) &&
+             (!('senderName' in data) || (data.senderName is string && data.senderName.size() <= 60)) &&
+             (!('receiverId' in data) || (data.receiverId is string && data.receiverId.size() <= 128)) &&
+             (!('idempotencyKey' in data) || (data.idempotencyKey is string && data.idempotencyKey.size() <= 128)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidWithdrawalRequest(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 50 &&
+             data.diamondsAmount is int && data.diamondsAmount >= 10000 && data.diamondsAmount <= 100000000 &&
+             data.payoutInrPaise is int && data.payoutInrPaise == data.diamondsAmount * 40 &&
+             data.bankName is string && data.bankName.size() >= 2 && data.bankName.size() <= 80 &&
+             data.bankAccountMasked is string && data.bankAccountMasked.size() >= 4 && data.bankAccountMasked.size() <= 34 &&
+             data.bankIfsc is string && data.bankIfsc.size() >= 4 && data.bankIfsc.size() <= 20 &&
+             data.status is string && (data.status == 'PENDING_VERIFICATION' || data.status == 'VERIFIED_PAID' || data.status == 'REJECTED') &&
+             data.idempotencyKey is string && data.idempotencyKey.size() >= 4 && data.idempotencyKey.size() <= 128 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAdminAuditLog(data) {
+      return data.adminId is string && data.adminId.size() >= 1 && data.adminId.size() <= 128 &&
+             data.adminEmail is string && data.adminEmail.size() <= 150 &&
+             data.actionType is string && (
+               data.actionType == 'PROMO_ALLOCATION' ||
+               data.actionType == 'PROMO_GIFT_SENT' ||
+               data.actionType == 'LIMIT_CONFIG_UPDATED' ||
+               data.actionType == 'WITHDRAWAL_VERIFIED_PAID'
+             ) &&
+             data.diamondsAmount is int && data.diamondsAmount >= 0 && data.diamondsAmount <= 100000000 &&
+             data.targetUser is string && data.targetUser.size() >= 1 && data.targetUser.size() <= 80 &&
+             data.note is string && data.note.size() >= 2 && data.note.size() <= 300 &&
+             data.idempotencyKey is string && data.idempotencyKey.size() >= 4 && data.idempotencyKey.size() <= 128 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidSupportTicket(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 50 &&
+             data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 120 &&
+             data.category is string && (data.category == 'PAYMENT' || data.category == 'ACCOUNT_OTP' || data.category == 'CONTENT_REPORT' || data.category == 'LIVE_STREAM' || data.category == 'GENERAL') &&
+             data.description is string && data.description.size() >= 2 && data.description.size() <= 1000 &&
+             data.priority is string && (data.priority == 'NORMAL' || data.priority == 'HIGH' || data.priority == 'URGENT') &&
+             data.status is string && (data.status == 'OPEN' || data.status == 'IN_PROGRESS' || data.status == 'RESOLVED') &&
+             data.adminReply is string && data.adminReply.size() <= 1000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. Public User Profiles & 3-Wallet Balances (/users/{userId})
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'username', 'bio', 'avatarColor', 'coinsBalance', 'giftsReceivedCount', 'followersCount', 'isVerifiedOtp', 'acceptedTerms', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'username', 'bio', 'avatarColor', 'coinsBalance', 'adminWalletDiamonds', 'creatorEarningsDiamonds', 'withdrawableDiamonds', 'vipLevel', 'vipXp', 'adminMaxAllocationLimit', 'adminDailyGiftLimit', 'giftsReceivedCount', 'followersCount', 'isVerifiedOtp', 'acceptedTerms', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         // Action 1: Owner updating own profile, OTP, terms, VIP, or verified wallet operations
+                         (request.auth.uid == userId &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarColor', 'coinsBalance', 'adminWalletDiamonds', 'creatorEarningsDiamonds', 'withdrawableDiamonds', 'vipLevel', 'vipXp', 'adminMaxAllocationLimit', 'adminDailyGiftLimit', 'giftsReceivedCount', 'followersCount', 'isVerifiedOtp', 'acceptedTerms', 'updatedAt'])) ||
+                         // Action 2: Another user/admin gifting this creator (strictly increments Creator Earnings Wallet and gift counters; cannot deduct or alter Admin Wallet)
+                         (request.auth.uid != userId &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['coinsBalance', 'creatorEarningsDiamonds', 'withdrawableDiamonds', 'giftsReceivedCount', 'followersCount', 'updatedAt']) &&
+                          incoming().coinsBalance >= existing().coinsBalance &&
+                          incoming().giftsReceivedCount >= existing().giftsReceivedCount &&
+                          (!('creatorEarningsDiamonds' in existing()) || incoming().creatorEarningsDiamonds >= existing().creatorEarningsDiamonds) &&
+                          (!('withdrawableDiamonds' in existing()) || incoming().withdrawableDiamonds >= existing().withdrawableDiamonds))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+
+      // 2. Private User PII & Verified Bank Account Subcollection (/users/{userId}/private/{docId})
+      match /private/{docId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(docId) && (request.auth.uid == userId || isAdmin());
+        allow list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(docId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'email', 'phone', 'kycStatus', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'email', 'phone', 'kycStatus', 'bankHolderName', 'bankAccountNumber', 'bankIfsc', 'bankName', 'bankVerified', 'updatedAt']) &&
+                         isValidUserPrivateInfo(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(docId) &&
+                         isValidUserPrivateInfo(incoming()) &&
+                         incoming().userId == existing().userId && (
+                           isAdmin() ||
+                           (request.auth.uid == userId &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'kycStatus', 'bankHolderName', 'bankAccountNumber', 'bankIfsc', 'bankName', 'bankVerified', 'updatedAt']))
+                         );
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(docId) && (request.auth.uid == userId || isAdmin());
+      }
+    }
+
+    // 3. Reels, Short Videos & Photos (/reels/{reelId})
+    match /reels/{reelId} {
+      allow get: if isSignedIn() && isValidId(reelId) && (existing().visibility == 'PUBLIC' || existing().authorId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().visibility == 'PUBLIC' || existing().authorId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(reelId) &&
+                       incoming().authorId == request.auth.uid &&
+                       incoming().keys().hasAll(['authorId', 'authorName', 'caption', 'mediaType', 'category', 'musicTrack', 'themeColorHex', 'mediaUri', 'likesCount', 'giftsCoinsTotal', 'visibility', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['authorId', 'authorName', 'caption', 'mediaType', 'category', 'musicTrack', 'themeColorHex', 'mediaUri', 'likesCount', 'giftsCoinsTotal', 'visibility', 'createdAt', 'updatedAt']) &&
+                       isValidReelPost(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(reelId) &&
+                       isValidReelPost(incoming()) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (request.auth.uid == existing().authorId &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['caption', 'category', 'visibility', 'likesCount', 'giftsCoinsTotal', 'updatedAt'])) ||
+                         (existing().visibility == 'PUBLIC' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'giftsCoinsTotal', 'updatedAt']) &&
+                          incoming().likesCount >= existing().likesCount &&
+                          incoming().giftsCoinsTotal >= existing().giftsCoinsTotal)
+                       );
+
+      allow delete: if isSignedIn() && isValidId(reelId) && (existing().authorId == request.auth.uid || isAdmin());
+    }
+
+    // 4. Live Video & PK Battle Rooms (/live_rooms/{roomId})
+    match /live_rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId);
+      allow list: if isSignedIn() && (existing().status == 'LIVE' || existing().hostId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().hostId == request.auth.uid &&
+                       incoming().keys().hasAll(['hostId', 'hostName', 'title', 'topic', 'status', 'viewerCount', 'totalGiftsCoins', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['hostId', 'hostName', 'title', 'topic', 'status', 'viewerCount', 'totalGiftsCoins', 'isPkBattle', 'opponentName', 'hostPkScore', 'opponentPkScore', 'createdAt', 'updatedAt']) &&
+                       isValidLiveRoom(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidLiveRoom(incoming()) &&
+                       incoming().hostId == existing().hostId &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         // Terminal State Lock: Only allow updates while room is LIVE
+                         (existing().status == 'LIVE' && (
+                           (request.auth.uid == existing().hostId &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'topic', 'status', 'viewerCount', 'totalGiftsCoins', 'isPkBattle', 'opponentName', 'hostPkScore', 'opponentPkScore', 'updatedAt'])) ||
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['viewerCount', 'totalGiftsCoins', 'isPkBattle', 'opponentName', 'hostPkScore', 'opponentPkScore', 'updatedAt']) &&
+                            incoming().totalGiftsCoins >= existing().totalGiftsCoins)
+                         ))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(roomId) && (existing().hostId == request.auth.uid || isAdmin());
+
+      // 5. Live Chat & Gift Messages Subcollection (/live_rooms/{roomId}/messages/{messageId})
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(messageId) && existing().roomId == roomId;
+        allow list: if isSignedIn() && existing().roomId == roomId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(messageId) &&
+                         incoming().roomId == roomId &&
+                         incoming().senderId == request.auth.uid &&
+                         incoming().keys().hasAll(['roomId', 'senderId', 'senderName', 'message', 'messageType', 'giftName', 'giftCoins', 'createdAt']) &&
+                         incoming().keys().hasOnly(['roomId', 'senderId', 'senderName', 'message', 'messageType', 'giftName', 'giftCoins', 'walletSource', 'createdAt']) &&
+                         isValidLiveChatMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/live_rooms/$(roomId)) &&
+                         get(/databases/$(database)/documents/live_rooms/$(roomId)).data.status == 'LIVE';
+
+        allow update, delete: if false;
+      }
+    }
+
+    // 6. Immutable 3-Wallet Diamond & Gift Transactions Ledger (/transactions/{txId})
+    match /transactions/{txId} {
+      allow get: if isSignedIn() && isValidId(txId) && (resource == null || existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(txId) &&
+                       incoming().keys().hasAll(['userId', 'txType', 'coinsDelta', 'amountInrPaise', 'razorpayOrderId', 'razorpayPaymentId', 'paymentMode', 'recipientName', 'giftLabel', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'txType', 'coinsDelta', 'amountInrPaise', 'razorpayOrderId', 'razorpayPaymentId', 'paymentMode', 'recipientName', 'giftLabel', 'walletType', 'senderId', 'senderName', 'receiverId', 'idempotencyKey', 'createdAt']) &&
+                       isValidCoinTransaction(incoming()) && (
+                         incoming().userId == request.auth.uid ||
+                         // Allow sender to record the recipient creator's GIFT_RECEIVED earning entry strictly with positive coinsDelta in CREATOR_WALLET
+                         (incoming().txType == 'GIFT_RECEIVED' &&
+                          'senderId' in incoming() &&
+                          incoming().senderId == request.auth.uid &&
+                          incoming().coinsDelta > 0 &&
+                          'walletType' in incoming() &&
+                          incoming().walletType == 'CREATOR_WALLET') ||
+                         isAdmin()
+                       );
+
+      allow update, delete: if false;
+    }
+
+    // 7. Creator Earnings Withdrawal Requests (/withdrawal_requests/{withdrawalId})
+    match /withdrawal_requests/{withdrawalId} {
+      allow get: if isSignedIn() && isValidId(withdrawalId) && (resource == null || existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      // Create: Must be authenticated owner, minimum 10,000 Diamonds = INR 4,000, and initial status must be PENDING_VERIFICATION
+      allow create: if isSignedIn() &&
+                       isValidId(withdrawalId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().status == 'PENDING_VERIFICATION' &&
+                       incoming().keys().hasAll(['userId', 'userName', 'diamondsAmount', 'payoutInrPaise', 'bankName', 'bankAccountMasked', 'bankIfsc', 'status', 'idempotencyKey', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'userName', 'diamondsAmount', 'payoutInrPaise', 'bankName', 'bankAccountMasked', 'bankIfsc', 'status', 'idempotencyKey', 'createdAt', 'updatedAt']) &&
+                       isValidWithdrawalRequest(incoming());
+
+      // Update: Terminal state lock once VERIFIED_PAID or REJECTED
+      allow update: if isSignedIn() &&
+                       isValidId(withdrawalId) &&
+                       isValidWithdrawalRequest(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().diamondsAmount == existing().diamondsAmount &&
+                       incoming().payoutInrPaise == existing().payoutInrPaise &&
+                       incoming().idempotencyKey == existing().idempotencyKey &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (existing().status == 'PENDING_VERIFICATION' &&
+                          request.auth.uid == existing().userId &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                       );
+
+      allow delete: if false;
+    }
+
+    // 8. Immutable Admin Promotional Wallet Audit Logs (/admin_audit_logs/{logId})
+    match /admin_audit_logs/{logId} {
+      allow get: if isSignedIn() && isValidId(logId) && (resource == null || existing().adminId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().adminId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(logId) &&
+                       incoming().adminId == request.auth.uid &&
+                       incoming().keys().hasAll(['adminId', 'adminEmail', 'actionType', 'diamondsAmount', 'targetUser', 'note', 'idempotencyKey', 'createdAt']) &&
+                       incoming().keys().hasOnly(['adminId', 'adminEmail', 'actionType', 'diamondsAmount', 'targetUser', 'note', 'idempotencyKey', 'createdAt']) &&
+                       isValidAdminAuditLog(incoming());
+
+      allow update, delete: if false;
+    }
+
+    // 9. 24/7 Help & Support Tickets (/support_tickets/{ticketId})
+    match /support_tickets/{ticketId} {
+      allow get: if isSignedIn() && isValidId(ticketId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(ticketId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'userName', 'subject', 'category', 'description', 'priority', 'status', 'adminReply', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'userName', 'subject', 'category', 'description', 'priority', 'status', 'adminReply', 'createdAt', 'updatedAt']) &&
+                       isValidSupportTicket(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(ticketId) &&
+                       isValidSupportTicket(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (existing().status != 'RESOLVED' &&
+                          request.auth.uid == existing().userId &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['description', 'status', 'adminReply', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(ticketId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+  }
+}

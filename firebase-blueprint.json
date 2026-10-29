@@ -1,0 +1,238 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public creator/viewer profile with 3 separate Diamond wallets (User Wallet, Admin Promotional Wallet, Creator Earnings Wallet) and VIP Level 1-1000",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "username": { "type": "string", "description": "Display handle" },
+        "bio": { "type": "string", "description": "Creator bio" },
+        "avatarColor": { "type": "string", "description": "Hex color for avatar badge" },
+        "coinsBalance": { "type": "integer", "description": "Wallet A: Regular User Diamond Wallet balance (purchased Diamonds for gifting)" },
+        "adminWalletDiamonds": { "type": "integer", "description": "Wallet B: Admin Promotional Diamond Wallet balance (for promotional gifting with audit trail)" },
+        "creatorEarningsDiamonds": { "type": "integer", "description": "Wallet C: Total lifetime Creator Earnings Diamonds received from gifts" },
+        "withdrawableDiamonds": { "type": "integer", "description": "Wallet C: Available eligible Creator Earnings Diamonds for withdrawal (10,000 Diamonds = INR 4,000)" },
+        "vipLevel": { "type": "integer", "description": "VIP Level from 1 to 1000" },
+        "vipXp": { "type": "integer", "description": "VIP experience points toward next VIP level" },
+        "adminMaxAllocationLimit": { "type": "integer", "description": "Configurable max promotional Diamonds per single allocation" },
+        "adminDailyGiftLimit": { "type": "integer", "description": "Configurable daily promotional gifting limit in Diamonds" },
+        "giftsReceivedCount": { "type": "integer", "description": "Total gifts received by this creator" },
+        "followersCount": { "type": "integer", "description": "Follower count" },
+        "isVerifiedOtp": { "type": "boolean", "description": "Whether 2FA/OTP verification is completed" },
+        "acceptedTerms": { "type": "boolean", "description": "Whether user accepted Terms & Policies" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "username", "bio", "avatarColor", "coinsBalance", "giftsReceivedCount", "followersCount", "isVerifiedOtp", "acceptedTerms", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII for user including phone, email, KYC status, and verified bank account for Creator Earnings withdrawals",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "phone": { "type": "string", "description": "User phone number for OTP verification" },
+        "kycStatus": { "type": "string", "enum": ["pending", "verified"], "description": "Creator payout KYC status" },
+        "bankHolderName": { "type": "string", "description": "Verified bank account holder full name" },
+        "bankAccountNumber": { "type": "string", "description": "Bank account number" },
+        "bankIfsc": { "type": "string", "description": "Bank IFSC code" },
+        "bankName": { "type": "string", "description": "Bank name" },
+        "bankVerified": { "type": "boolean", "description": "Whether bank account is verified for Creator Earnings withdrawals" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "email", "phone", "kycStatus", "updatedAt"]
+    },
+    "ReelPost": {
+      "title": "ReelPost",
+      "description": "Short video, reel, or photo upload item",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string", "description": "Creator UID" },
+        "authorName": { "type": "string", "description": "Creator display name" },
+        "caption": { "type": "string", "description": "Video/photo caption and hashtags" },
+        "mediaType": { "type": "string", "enum": ["REEL", "SHORT_VIDEO", "PHOTO"], "description": "Content format" },
+        "category": { "type": "string", "description": "Content category tag" },
+        "musicTrack": { "type": "string", "description": "Audio track title" },
+        "themeColorHex": { "type": "string", "description": "Visual theme hex for player stage" },
+        "mediaUri": { "type": "string", "description": "Selected media URI or preset stream key" },
+        "likesCount": { "type": "integer", "description": "Total likes" },
+        "giftsCoinsTotal": { "type": "integer", "description": "Total gift Diamonds sent to this post" },
+        "visibility": { "type": "string", "enum": ["PUBLIC", "MODERATION"], "description": "Visibility state" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["authorId", "authorName", "caption", "mediaType", "category", "musicTrack", "themeColorHex", "mediaUri", "likesCount", "giftsCoinsTotal", "visibility", "createdAt", "updatedAt"]
+    },
+    "LiveRoom": {
+      "title": "LiveRoom",
+      "description": "Live video broadcast room with PK Battle support",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string", "description": "Host creator UID" },
+        "hostName": { "type": "string", "description": "Host display name" },
+        "title": { "type": "string", "description": "Live broadcast title" },
+        "topic": { "type": "string", "description": "Stream topic" },
+        "status": { "type": "string", "enum": ["LIVE", "ENDED"], "description": "Broadcast status" },
+        "viewerCount": { "type": "integer", "description": "Active viewer count" },
+        "totalGiftsCoins": { "type": "integer", "description": "Total Diamonds gifted in this live session" },
+        "isPkBattle": { "type": "boolean", "description": "Whether PK Battle mode is active in this Live Room" },
+        "opponentName": { "type": "string", "description": "PK Battle opponent creator handle" },
+        "hostPkScore": { "type": "integer", "description": "Host PK Battle Diamond score" },
+        "opponentPkScore": { "type": "integer", "description": "Opponent PK Battle Diamond score" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["hostId", "hostName", "title", "topic", "status", "viewerCount", "totalGiftsCoins", "createdAt", "updatedAt"]
+    },
+    "LiveChatMessage": {
+      "title": "LiveChatMessage",
+      "description": "Real-time chat message or gift alert inside a live room",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "description": "Parent LiveRoom ID" },
+        "senderId": { "type": "string", "description": "Sender UID" },
+        "senderName": { "type": "string", "description": "Sender display name" },
+        "message": { "type": "string", "description": "Message text or gift announcement" },
+        "messageType": { "type": "string", "enum": ["CHAT", "GIFT", "PK_GIFT"], "description": "Chat vs Gift alert" },
+        "giftName": { "type": "string", "description": "Gift name if GIFT else empty" },
+        "giftCoins": { "type": "integer", "description": "Diamonds value if GIFT else 0" },
+        "walletSource": { "type": "string", "enum": ["USER_WALLET", "ADMIN_PROMO_WALLET"], "description": "Wallet used for gift" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["roomId", "senderId", "senderName", "message", "messageType", "giftName", "giftCoins", "createdAt"]
+    },
+    "CoinTransaction": {
+      "title": "CoinTransaction",
+      "description": "Immutable ledger record for Diamond purchases, User/Admin gifts, Creator earnings, and Withdrawals",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "txType": {
+          "type": "string",
+          "enum": [
+            "RAZORPAY_TOPUP",
+            "GIFT_SENT",
+            "GIFT_RECEIVED",
+            "ADMIN_PROMO_ALLOCATION",
+            "ADMIN_PROMO_GIFT",
+            "CREATOR_WITHDRAWAL",
+            "VIP_UPGRADE",
+            "WELCOME_BONUS"
+          ],
+          "description": "Transaction type across the 3 wallets"
+        },
+        "coinsDelta": { "type": "integer", "description": "Positive or negative Diamond change" },
+        "amountInrPaise": { "type": "integer", "description": "Amount in INR paise for purchases or withdrawals" },
+        "razorpayOrderId": { "type": "string", "description": "Razorpay Order ID or internal reference" },
+        "razorpayPaymentId": { "type": "string", "description": "Razorpay Payment ID or unique transaction reference" },
+        "paymentMode": { "type": "string", "enum": ["TEST", "LIVE"], "description": "Payment verification mode" },
+        "recipientName": { "type": "string", "description": "Recipient name for gifts or Self" },
+        "giftLabel": { "type": "string", "description": "Gift name, Diamond pack, or withdrawal label" },
+        "walletType": { "type": "string", "enum": ["USER_WALLET", "ADMIN_WALLET", "CREATOR_WALLET"], "description": "Which of the 3 Diamond wallets was affected" },
+        "senderId": { "type": "string", "description": "UID of gift sender" },
+        "senderName": { "type": "string", "description": "Display name of gift sender" },
+        "receiverId": { "type": "string", "description": "UID of gift receiver" },
+        "idempotencyKey": { "type": "string", "description": "Unique idempotency key preventing duplicate transactions" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "txType", "coinsDelta", "amountInrPaise", "razorpayOrderId", "razorpayPaymentId", "paymentMode", "recipientName", "giftLabel", "createdAt"]
+    },
+    "WithdrawalRequest": {
+      "title": "WithdrawalRequest",
+      "description": "Creator Earnings Wallet withdrawal request enforcing minimum 10,000 Diamonds = INR 4,000 and verified bank account",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Creator UID" },
+        "userName": { "type": "string", "description": "Creator username" },
+        "diamondsAmount": { "type": "integer", "description": "Eligible Creator Earnings Diamonds to withdraw (minimum 10,000)" },
+        "payoutInrPaise": { "type": "integer", "description": "Converted payout in INR paise (10,000 Diamonds = 400,000 paise / INR 4,000)" },
+        "bankName": { "type": "string", "description": "Verified Bank Name" },
+        "bankAccountMasked": { "type": "string", "description": "Verified Bank Account Number (masked or full)" },
+        "bankIfsc": { "type": "string", "description": "Verified IFSC Code" },
+        "status": { "type": "string", "enum": ["PENDING_VERIFICATION", "VERIFIED_PAID", "REJECTED"], "description": "Withdrawal verification and payout status" },
+        "idempotencyKey": { "type": "string", "description": "Unique idempotency key to prevent duplicate withdrawals" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "userName", "diamondsAmount", "payoutInrPaise", "bankName", "bankAccountMasked", "bankIfsc", "status", "idempotencyKey", "createdAt", "updatedAt"]
+    },
+    "AdminAuditLog": {
+      "title": "AdminAuditLog",
+      "description": "Immutable audit log for Admin Promotional Diamond allocations, promotional gifts, limit changes, and payout verifications",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string", "description": "Admin UID" },
+        "adminEmail": { "type": "string", "description": "Admin email" },
+        "actionType": {
+          "type": "string",
+          "enum": ["PROMO_ALLOCATION", "PROMO_GIFT_SENT", "LIMIT_CONFIG_UPDATED", "WITHDRAWAL_VERIFIED_PAID"],
+          "description": "Audited admin action type"
+        },
+        "diamondsAmount": { "type": "integer", "description": "Diamonds allocated, gifted, or verified" },
+        "targetUser": { "type": "string", "description": "Recipient creator or target account" },
+        "note": { "type": "string", "description": "Detailed audit description" },
+        "idempotencyKey": { "type": "string", "description": "Unique idempotency key" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["adminId", "adminEmail", "actionType", "diamondsAmount", "targetUser", "note", "idempotencyKey", "createdAt"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "24/7 Help & Support ticket submitted by a user and managed in Admin Dashboard",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Ticket creator UID" },
+        "userName": { "type": "string", "description": "Ticket creator display name" },
+        "subject": { "type": "string", "description": "Ticket subject" },
+        "category": { "type": "string", "enum": ["PAYMENT", "ACCOUNT_OTP", "CONTENT_REPORT", "LIVE_STREAM", "GENERAL"], "description": "Support category" },
+        "description": { "type": "string", "description": "Detailed issue description" },
+        "priority": { "type": "string", "enum": ["NORMAL", "HIGH", "URGENT"], "description": "Priority level" },
+        "status": { "type": "string", "enum": ["OPEN", "IN_PROGRESS", "RESOLVED"], "description": "Ticket resolution status" },
+        "adminReply": { "type": "string", "description": "Response from support/admin team" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "userName", "subject", "category", "description", "priority", "status", "adminReply", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public creator/viewer profiles with 3 Diamond wallets and VIP Level 1-1000"
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated PII and verified bank account details accessible only by owner or admin"
+    },
+    "/reels/{reelId}": {
+      "schema": { "$ref": "#/entities/ReelPost" },
+      "description": "Reels, short videos, and photo posts"
+    },
+    "/live_rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/LiveRoom" },
+      "description": "Live streaming broadcast rooms and PK Battles"
+    },
+    "/live_rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/LiveChatMessage" },
+      "description": "Real-time live chat messages and gift alerts inside a live room"
+    },
+    "/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/CoinTransaction" },
+      "description": "Immutable 3-wallet Diamond purchase, gift, allocation, and withdrawal ledger"
+    },
+    "/withdrawal_requests/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/WithdrawalRequest" },
+      "description": "Creator Earnings withdrawal requests (10,000 Diamonds = INR 4,000)"
+    },
+    "/admin_audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AdminAuditLog" },
+      "description": "Immutable audit log for Admin Promotional Wallet allocations, gifts, and payout approvals"
+    },
+    "/support_tickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/SupportTicket" },
+      "description": "24/7 Help & Support tickets with admin resolution workflow"
+    }
+  }
+}
